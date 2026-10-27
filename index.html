@@ -14,6 +14,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
   :root {
+    color-scheme: dark;
     --bg: #040806; --panel: #0a1812; --panel-2: #0f2119; --linha: rgba(31, 242, 163, .14); --linha-forte: rgba(31, 242, 163, .42);
     --texto: #eefdf6; --apagado: #a6bdb1; --acento: #1ff2a3; --acento-2: #12d8c4; --alerta: #ffb36b; --perigo: #ff7a7a;
     --raio: 18px; --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -127,7 +128,73 @@
   dialog.dlg-form label.marca { display: flex; margin-top: 10px; }
   dialog.dlg-form input[type=text], dialog.dlg-form select, dialog.dlg-form input[type=date] { width: 100%; min-height: 44px; padding: 10px 12px; border-radius: 12px;
     background: var(--panel); border: 1px solid var(--linha); }
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  /* 27/10: a tela de criar inteira (igual à /novo do Vision) */
+  .passo { display: flex; align-items: center; gap: 12px; margin: 28px 0 12px; }
+  .passo:first-child { margin-top: 4px; }
+  .passo > span { font-family: var(--mono); font-size: .8rem; color: var(--acento); border: 1px solid var(--linha-forte); border-radius: 999px; padding: 3px 9px; }
+  .passo h2 { margin: 0; font-size: 1.08rem; }
+  .passo p { margin: 0; color: var(--apagado); font-size: .82rem; }
+  .form .nome-grande { font-size: 1.05rem; font-weight: 600; }
+  .form p.rot { margin: 18px 0 6px; font-weight: 600; font-size: .92rem; }
+  .form p.rot small { display: inline; margin-left: 6px; }
+  .form p.sub { margin: -4px 0 10px; color: var(--apagado); font-size: .84rem; }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px; border-radius: 14px; background: var(--panel); border: 1px solid var(--linha); }
+  .seg button { flex: 1 1 auto; min-height: 42px; padding: 8px 12px; border: 0; border-radius: 10px; background: transparent; color: var(--apagado); font-weight: 600; font-size: .9rem; }
+  .seg button[aria-checked=true] { background: rgba(31, 242, 163, .14); color: var(--acento); }
+  .form .vaga { position: relative; display: grid; gap: 2px; margin: 10px 0 0; padding: 14px; border-radius: 14px; background: var(--panel); border: 1px dashed var(--linha-forte); font-weight: 600; cursor: pointer; }
+  .vaga input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+  .form .vaga small { margin: 0; }
+  .vaga.cheia { border-style: solid; border-color: var(--acento); }
+  .form .vaga.cheia small { color: var(--acento); }
+  .fontes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .fonte { display: grid; align-content: start; gap: 1px; text-align: left; min-height: 58px; padding: 10px 12px; border-radius: 14px; background: var(--panel); border: 1px solid var(--linha); color: var(--apagado); }
+  .fonte b { font-size: .9rem; color: var(--texto); }
+  .fonte small { font-size: .74rem; }
+  .fonte[aria-pressed=true] { border-color: var(--acento); background: rgba(31, 242, 163, .1); }
+  .fonte[aria-pressed=true] b { color: var(--acento); }
+  .fonte:disabled { opacity: .38; }
+  .fonte.ultra { grid-column: 1 / -1; }
+  .aviso-mini { margin: 10px 0 0; padding: 10px 12px; border-radius: 12px; font-size: .84rem; background: rgba(255, 179, 107, .1); border: 1px solid rgba(255, 179, 107, .38); }
+  .dobra { margin-top: 10px; border-radius: 14px; background: var(--panel); border: 1px solid var(--linha); }
+  .dobra > summary { display: flex; align-items: center; gap: 8px; min-height: 50px; padding: 0 14px; font-weight: 600; cursor: pointer; list-style: none; }
+  .dobra > summary::-webkit-details-marker { display: none; }
+  .dobra > summary em { margin-left: auto; font-style: normal; font-weight: 500; color: var(--acento); font-size: .82rem; text-align: right; max-width: 55%; }
+  .dobra > summary::after { content: "+"; color: var(--apagado); font-size: 1.2rem; }
+  .dobra > summary:not(:has(em))::after { margin-left: auto; }
+  .dobra[open] > summary::after { content: "–"; }
+  .dobra .corpo { padding: 0 12px 14px; }
+  .opcs { display: grid; gap: 6px; }
+  .opc { display: grid; gap: 1px; text-align: left; padding: 10px 12px; border-radius: 12px; background: transparent; border: 1px solid var(--linha); color: var(--texto); }
+  .opc b { font-size: .9rem; font-weight: 600; }
+  .form .opc small { margin: 0; }
+  .opc[aria-checked=true] { border-color: var(--acento); background: rgba(31, 242, 163, .1); }
+  .opc[aria-checked=true] b { color: var(--acento); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips .opc { padding: 8px 12px; border-radius: 999px; }
+  .grupo-nome { margin: 12px 0 6px; font-size: .76rem; color: var(--apagado); }
+  .campo-aj label.rotulo { margin: 12px 0 6px; }
+  .form .dobra input[type=text], .form .dobra input[type=number], .form .dobra select { background: var(--panel-2); }
+  .form input[type=number] { width: 100%; min-height: 46px; padding: 11px 13px; border-radius: 12px; border: 1px solid var(--linha); }
+  .dobra .marca { background: var(--panel-2); }
+  .marca.desligada { opacity: .45; }
+  .lancar { display: grid; gap: 8px; margin-top: 24px; }
+  .form .lancar .btn { width: 100%; margin: 0; }
+  .envio { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; background: rgba(2, 6, 4, .8); }
+  .envio > div { width: min(92vw, 380px); padding: 20px; border-radius: var(--raio); background: var(--panel-2); border: 1px solid var(--linha-forte); }
+  .envio small { display: block; margin-top: 6px; color: var(--apagado); font-size: .82rem; }
+  h3.sec.pedidos-t { margin-top: 0; }
+  .pedido { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; padding: 12px 14px; border-radius: 14px; background: var(--panel); border: 1px solid var(--linha); font-size: .88rem; }
+  .pedido > i { flex: none; width: 10px; height: 10px; margin-top: 6px; border-radius: 50%; background: var(--apagado); }
+  .pedido.ok > i { background: var(--acento); }
+  .pedido.ruim { border-color: rgba(255, 122, 122, .4); }
+  .pedido.ruim > i { background: var(--perigo); }
+  .pedido.roda > i { background: var(--alerta); animation: pisca 1.2s infinite; }
+  .pedido div { flex: 1; min-width: 0; }
+  .pedido p { margin: 2px 0 0; color: var(--apagado); font-size: .82rem; word-break: break-word; }
+  .pedido.ruim p { color: #ffd2d2; }
+  .pedido time { flex: none; color: var(--apagado); font-family: var(--mono); font-size: .74rem; }
+  @keyframes pisca { 50% { opacity: .3; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
@@ -154,33 +221,60 @@
       <p>A fila do PC está pausada. Os próximos vídeos só começam quando você retomar.</p>
       <button class="btn forte" type="button" data-pedido="retomar_fila">Retomar a fila</button>
     </div>
+    <div id="pedidos"></div>
     <div id="lista"></div>
   </section>
 
   <section id="tela-criar" class="form" hidden>
-    <form id="form-criar" autocomplete="off">
-      <label for="c-nome">Nome do projeto</label>
-      <input type="text" id="c-nome" maxlength="80" required placeholder="ex.: CHRISTMAS_ISLAND">
-      <label for="c-roteiro">Roteiro</label>
-      <textarea id="c-roteiro" required placeholder="Cole aqui o texto que vai ser narrado. Linha em branco = pausa."></textarea>
-      <small id="c-conta">0 letras</small>
-      <label for="c-canal">Canal</label>
-      <select id="c-canal"></select>
-      <label for="c-pipeline">Pipeline</label>
-      <select id="c-pipeline"></select>
-      <label for="c-nicho">Nicho</label>
-      <select id="c-nicho"></select>
-      <small>No Automático, o V9 lê o roteiro e escolhe.</small>
-      <label for="c-cerebro">Cérebro</label>
-      <select id="c-cerebro">
-        <option value="">O padrão deste PC</option>
-        <option value="icaro">ÍCARO</option>
-        <option value="original">Original</option>
-      </select>
-      <label class="marca"><input type="checkbox" id="c-rapido"><span>Modo rápido<small>A busca do YouTube como no V9 Lite: o vídeo sai em menos da metade do tempo.</small></span></label>
-      <label class="marca" id="c-youtube-l"><input type="checkbox" id="c-youtube" checked><span>Usar vídeos do YouTube</span></label>
-      <label class="marca"><input type="checkbox" id="c-logo"><span>Manter o logo da emissora<small>E creditar a fonte na tela.</small></span></label>
-      <button class="btn forte" type="submit">Mandar para o PC</button>
+    <div class="vazio" id="criar-espera">O PC ainda não mandou a tela de criar. Deixe o V9 Vision aberto no PC (atualizado): em alguns segundos ela aparece aqui.</div>
+    <form id="form-criar" autocomplete="off" novalidate hidden>
+      <div class="passo"><span>01</span><div><h2>Projeto</h2><p>nome, narração e legenda</p></div></div>
+      <input type="text" id="c-nome" class="nome-grande" maxlength="80" placeholder="Nome do projeto · ex.: CHRISTMAS_ISLAND" aria-label="Nome do projeto">
+      <p class="rot">Narração</p>
+      <div class="seg" id="c-narr" role="radiogroup" aria-label="Narração">
+        <button type="button" data-v="audio" aria-checked="true" role="radio">Tenho o áudio</button>
+        <button type="button" data-v="fish" aria-checked="false" role="radio">Narrar com o Fish</button>
+      </div>
+      <div id="c-bloco-audio">
+        <label class="vaga" id="v-audio"><input type="file" id="c-audio" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.opus,.flac">
+          <b>Áudio da narração</b><small data-vazio="mp3, wav ou m4a · até 50 MB">mp3, wav ou m4a · até 50 MB</small></label>
+        <label class="vaga" id="v-srt"><input type="file" id="c-srt" accept=".srt,application/x-subrip,text/plain">
+          <b>Legenda (.srt) · opcional</b><small data-vazio="sem ela o app transcreve o áudio">sem ela o app transcreve o áudio</small></label>
+      </div>
+      <div id="c-bloco-fish" hidden>
+        <label for="c-roteiro">Roteiro da narração</label>
+        <textarea id="c-roteiro" placeholder="Cole o texto que vai ser narrado. Linha em branco = pausa entre parágrafos."></textarea>
+        <small id="c-conta">0 palavras</small>
+        <label for="c-voz">Voz do Fish Audio</label>
+        <select id="c-voz"></select>
+        <input type="text" id="c-voz-codigo" hidden placeholder="código da voz: o final do link fish.audio/m/&lt;código&gt;" style="margin-top:8px">
+        <small>A voz define o sotaque: use uma voz nativa do idioma do roteiro.</small>
+      </div>
+      <details class="dobra" id="c-material-d" hidden><summary>Material da pessoa do caso <em>opcional · true crime</em></summary>
+        <div class="corpo"><label class="vaga"><input type="file" id="c-material" accept="image/*,video/*" multiple>
+          <b>Fotos e vídeos da pessoa</b><small data-vazio="o app usa no lugar de fotos de banco">o app usa no lugar de fotos de banco</small></label></div>
+      </details>
+
+      <div class="passo"><span>02</span><div><h2>Fontes e estilo</h2><p>acenda de onde vêm as cenas e escolha a cara do canal</p></div></div>
+      <div class="fontes" id="c-fontes"></div>
+      <p class="aviso-mini" id="c-fontes-aviso" hidden>Só YouTube, sem IA nem fotos: o vídeo vai repetir trechos. Acenda <b>Recriar com IA</b> e <b>Fotos de arquivo</b>.</p>
+      <p class="rot">Impacto <small>frases e destaques na tela</small></p>
+      <div class="seg" id="c-impacto" role="radiogroup" aria-label="Impacto"></div>
+      <div id="c-topo"></div>
+      <h3 class="sec">Como o vídeo vai ser</h3>
+      <p class="sub">Abra só o que quiser mudar. Fechado, o V9 lê o roteiro e escolhe.</p>
+      <div id="c-receita"></div>
+      <p class="rot">Cérebro que produz o vídeo</p>
+      <div class="seg" id="c-cerebro" role="radiogroup" aria-label="Cérebro"></div>
+
+      <div class="passo"><span>03</span><div><h2>Ajustes</h2><p>o Pipeline já marca tudo; mexa só no que quiser mudar</p></div></div>
+      <div id="c-ajustes"></div>
+
+      <div class="lancar">
+        <button class="btn forte" type="submit" data-modo="gerar">Gerar vídeo</button>
+        <button class="btn" type="submit" data-modo="so_intro" id="c-so-intro" hidden>Só a introdução</button>
+        <button class="btn" type="submit" data-modo="comparar" id="c-comparar" hidden>Comparar cérebros</button>
+      </div>
     </form>
   </section>
 
@@ -267,6 +361,8 @@
     </div>
   </form>
 </dialog>
+<div class="envio" id="envio" hidden><div><b id="envio-txt">Enviando…</b><div class="barra"><i id="envio-barra"></i></div><small id="envio-sub"></small></div></div>
 <script src="app.js"></script>
+<script src="criar.js"></script>
 </body>
 </html>

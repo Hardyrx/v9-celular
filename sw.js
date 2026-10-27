@@ -1,6 +1,6 @@
 // V9 Vision no celular: guarda a casca do app (abre sem rede) e mostra os avisos do PC.
-const CASCA = "v9cel-2";
-const ARQUIVOS = ["./", "index.html", "app.js", "manifest.webmanifest", "icone-192.png", "icone-512.png"];
+const CASCA = "v9cel-3";
+const ARQUIVOS = ["./", "index.html", "app.js", "criar.js", "manifest.webmanifest", "icone-192.png", "icone-512.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CASCA).then((c) => c.addAll(ARQUIVOS)).then(() => self.skipWaiting()));

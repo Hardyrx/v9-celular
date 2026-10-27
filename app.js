@@ -14,7 +14,13 @@ const guardado = {
 let token = guardado.ler(CHAVE_TOKEN);
 let tokenAdm = guardado.ler(CHAVE_ADM);
 let ultimo = null;                 // a última resposta de cel_estado
-let esperando = new Map();         // id do pedido -> texto do que foi pedido
+// id do pedido -> texto do que foi pedido (guardado: fechar o app no meio não perde a resposta)
+let esperando = new Map(Object.entries(JSON.parse(guardado.ler("v9cel_esperando") || "{}")).map(([k, v]) => [Number(k), v]));
+function guardarEsperando() { guardado.gravar("v9cel_esperando", JSON.stringify(Object.fromEntries(esperando))); }
+// o nome de cada pedido na lista "Seus pedidos" (fica depois da resposta; só os 30 últimos)
+const rotulos = new Map(Object.entries(JSON.parse(guardado.ler("v9cel_rotulos") || "{}")).map(([k, v]) => [Number(k), v]));
+function guardarRotulo(id, r) { rotulos.set(id, r); while (rotulos.size > 30) rotulos.delete(rotulos.keys().next().value);
+  guardado.gravar("v9cel_rotulos", JSON.stringify(Object.fromEntries(rotulos))); }
 let relogio = null;
 
 async function nuvem(acao, campos = {}) {
@@ -31,6 +37,10 @@ const MOTIVOS = {
   pedidos_demais: "Muitos pedidos em 1 hora. Espere um pouco.",
   sem_resposta: "Sem internet ou a nuvem não respondeu.",
   grande_demais: "O roteiro está grande demais para mandar pelo celular.",
+  tipo_de_arquivo: "Esse tipo de arquivo não vale aqui. Áudio: mp3, wav, m4a; legenda: .srt; material: fotos e vídeos.",
+  arquivo_grande: "O arquivo passa de 50 MB. Mande em mp3 ou m4a (um áudio de 15 min em mp3 tem uns 15 MB).",
+  arquivos_demais: "Muitos arquivos esperando o PC. Deixe o V9 Vision aberto no PC para ele buscar e tente de novo.",
+  arquivo_invalido: "Não consegui ler esse arquivo. Escolha de novo.",
 };
 
 // ------------------------------------------------------------------ avisos na tela
@@ -219,14 +229,34 @@ function desenhar(d) {
   } else {
     for (const p of e.projetos) lista.appendChild(cartao(p));
   }
-  opcoesCriar(e.criar);
+  if (typeof criarTela === "function") criarTela(e.criar);
 }
 
+const NOME_PEDIDO = { pausar: "Pausar", retomar: "Retomar", parar: "Parar", continuar: "Continuar", retomar_fila: "Retomar a fila",
+                      gerar_veo: "Mandar as cenas de IA", exportar_mp4: "Exportar o MP4", criar_video: "Criar vídeo", refazer: "Refazer" };
 function respostas(d) {
+  const lista = (d.respostas || []).filter((r) => Date.now() - new Date(r.criado_em).getTime() < 24 * 3600e3).slice(0, 6);
+  const caixa = $("pedidos");
+  caixa.textContent = "";
+  if (lista.length) {
+    caixa.appendChild(el("h3", "sec pedidos-t", "Seus pedidos"));
+    for (const r of lista) {
+      const res = r.resultado || {};
+      const estado = r.feito_em ? (res.ok ? "ok" : "ruim") : "roda";
+      const linha = el("div", "pedido " + estado);
+      const meio = el("div");
+      meio.appendChild(el("b", "", rotulos.get(r.id) || NOME_PEDIDO[r.acao] || r.acao));
+      meio.appendChild(el("p", "", r.feito_em ? (res.ok ? "Feito." + (res.msg ? " " + res.msg : "") : "Não deu: " + (res.msg || "o PC não conseguiu."))
+                                              : r.pego_em ? "O PC está fazendo…" : d.pc_online ? "Esperando o PC pegar…" : "Esperando o PC ligar (o V9 Vision precisa estar aberto)."));
+      linha.append(el("i"), meio, el("time", "", new Date(r.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })));
+      caixa.appendChild(linha);
+    }
+  }
   for (const r of d.respostas || []) {
     if (!esperando.has(r.id) || !r.feito_em) continue;
     const pedido = esperando.get(r.id);
     esperando.delete(r.id);
+    guardarEsperando();
     const res = r.resultado || {};
     toast(res.ok ? `${pedido}: feito.${res.msg ? " " + res.msg : ""}` : `${pedido}: ${res.msg || "o PC não conseguiu."}`, !res.ok);
   }
@@ -256,8 +286,12 @@ async function pedir(pedido, dados, rotulo) {
   if (ultimo && !ultimo.pc_online) toast("O PC parece desligado. O pedido fica guardado e roda quando ele voltar.");
   const d = await nuvem("cel_comando", { pedido, dados });
   esperando.set(d.id, rotulo);
+  guardarEsperando();
+  guardarRotulo(d.id, rotulo);
   if (!ultimo || ultimo.pc_online) toast(`${rotulo}: enviado ao PC…`);
   setTimeout(atualizar, 2500);
+  setTimeout(atualizar, 7000);
+  return d.id;
 }
 async function acao(k, projeto, rotulo) {
   const p = PERIGOSOS[k];
@@ -268,54 +302,6 @@ async function acao(k, projeto, rotulo) {
     else await pedir(k, { projeto }, rotulo);
   } catch (e) { toast(e.message, true); }
 }
-
-// ------------------------------------------------------------------ criar vídeo
-let opcoesFeitas = "";
-function encher(sel, itens, manter) {
-  const antes = sel.value;
-  sel.textContent = "";
-  for (const it of itens) {
-    const o = document.createElement("option");
-    o.value = it.id;
-    o.textContent = it.nome || it.id || "Automático";
-    sel.appendChild(o);
-  }
-  if (manter && [...sel.options].some((o) => o.value === antes)) sel.value = antes;
-}
-function opcoesCriar(c) {
-  if (!c) return;
-  const marca = JSON.stringify(c);
-  if (marca === opcoesFeitas) return;
-  opcoesFeitas = marca;
-  encher($("c-canal"), c.canais && c.canais.length ? c.canais : [{ id: "", nome: "O padrão do PC" }], true);
-  encher($("c-pipeline"), c.pipelines && c.pipelines.length ? c.pipelines : [{ id: "", nome: "Automático" }], true);
-  encher($("c-nicho"), c.nichos && c.nichos.length ? c.nichos : [{ id: "", nome: "Automático" }], true);
-  $("c-youtube-l").hidden = !c.youtube;
-}
-$("c-roteiro").addEventListener("input", (e) => {
-  const n = e.target.value.trim().length;
-  $("c-conta").textContent = n.toLocaleString("pt-BR") + " letras" + (n && n < 200 ? " (mínimo 200)" : "");
-});
-$("form-criar").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const nome = $("c-nome").value.trim(), roteiro = $("c-roteiro").value.trim();
-  if (!/^[\w\- À-ÿ]{2,80}$/.test(nome)) { toast("Nome do projeto: só letras, números, espaço, _ e - (2 a 80).", true); return; }
-  if (roteiro.length < 200) { toast("O roteiro está curto demais (mínimo 200 letras).", true); return; }
-  const dados = { nome, roteiro, canal: $("c-canal").value, pipeline: $("c-pipeline").value, nicho: $("c-nicho").value,
-                  rapido: $("c-rapido").checked, logo_emissora: $("c-logo").checked,
-                  youtube: !$("c-youtube-l").hidden && $("c-youtube").checked };
-  if ($("c-cerebro").value) dados.cerebro = $("c-cerebro").value;
-  const b = e.submitter || e.target.querySelector("button[type=submit]");
-  b.disabled = true;
-  try {
-    await pedir("criar_video", dados, "Criar " + nome);
-    $("c-nome").value = "";
-    $("c-roteiro").value = "";
-    $("c-conta").textContent = "0 letras";
-    aba("videos");
-  } catch (err) { toast(err.message, true); }
-  b.disabled = false;
-});
 
 // ------------------------------------------------------------------ avisos (Web Push)
 function b64url(s) {
