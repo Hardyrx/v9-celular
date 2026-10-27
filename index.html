@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>V9 Vision</title>
+<meta name="description" content="Acompanhe e comande o V9 Vision do seu PC pelo celular.">
+<meta name="theme-color" content="#040806">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="V9 Vision">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icone-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  :root {
+    --bg: #040806; --panel: #0a1812; --panel-2: #0f2119; --linha: rgba(31, 242, 163, .14); --linha-forte: rgba(31, 242, 163, .42);
+    --texto: #eefdf6; --apagado: #a6bdb1; --acento: #1ff2a3; --acento-2: #12d8c4; --alerta: #ffb36b; --perigo: #ff7a7a;
+    --raio: 18px; --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--texto); font-family: var(--sans); font-size: 16px; line-height: 1.45; }
+  body { min-height: 100dvh; padding: env(safe-area-inset-top) 0 calc(76px + env(safe-area-inset-bottom)); -webkit-tap-highlight-color: transparent; }
+  body::before { content: ""; position: fixed; inset: -20% -20% auto; height: 60vh; pointer-events: none; z-index: -1;
+    background: radial-gradient(60% 60% at 30% 20%, rgba(31, 242, 163, .16), transparent 70%); }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+
+  .topo { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px; padding: 14px 16px 12px;
+    background: linear-gradient(var(--bg) 70%, transparent); }
+  .topo img { width: 34px; height: 34px; border-radius: 9px; }
+  .topo h1 { flex: 1; margin: 0; font-size: 1.12rem; letter-spacing: -.01em; }
+  .pc { display: flex; align-items: center; gap: 7px; padding: 6px 11px; border-radius: 999px; font-size: .78rem;
+    background: var(--panel); border: 1px solid var(--linha); color: var(--apagado); white-space: nowrap; }
+  .pc i { width: 8px; height: 8px; border-radius: 50%; background: var(--apagado); }
+  .pc.ligado i { background: var(--acento); box-shadow: 0 0 10px var(--acento); }
+  .pc.desligado i { background: var(--alerta); }
+
+  main { padding: 0 16px; max-width: 640px; margin: 0 auto; }
+  .aviso { margin: 4px 0 14px; padding: 14px 16px; border-radius: var(--raio); background: rgba(255, 179, 107, .1);
+    border: 1px solid rgba(255, 179, 107, .38); }
+  .aviso p { margin: 0 0 10px; }
+
+  .video { margin-bottom: 12px; padding: 16px; border-radius: var(--raio); background: var(--panel); border: 1px solid var(--linha); }
+  .video.ativo { border-color: var(--linha-forte); }
+  .video h2 { margin: 0 0 2px; font-size: 1.02rem; word-break: break-word; }
+  .video .etapa { margin: 0; color: var(--apagado); font-size: .88rem; }
+  .video .etapa b { color: var(--texto); font-weight: 600; }
+  .barra { height: 6px; margin: 12px 0 4px; border-radius: 3px; background: rgba(255, 255, 255, .07); overflow: hidden; }
+  .barra i { display: block; height: 100%; width: 0; border-radius: 3px; background: linear-gradient(90deg, var(--acento), var(--acento-2));
+    transition: width .6s ease; }
+  .pct { font-family: var(--mono); font-size: .78rem; color: var(--apagado); }
+  .erro { margin: 10px 0 0; padding: 10px 12px; border-radius: 12px; font-size: .86rem; background: rgba(255, 122, 122, .08);
+    border: 1px solid rgba(255, 122, 122, .3); color: #ffd2d2; }
+  .acoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .btn { min-height: 44px; padding: 10px 16px; border-radius: 12px; border: 1px solid var(--linha-forte); background: transparent;
+    font-weight: 600; font-size: .92rem; }
+  .btn.forte { border-color: transparent; background: linear-gradient(95deg, var(--acento), var(--acento-2)); color: #03130c; }
+  .btn.perigo { border-color: rgba(255, 122, 122, .45); color: #ffc4c4; }
+  .btn:disabled { opacity: .5; }
+  .vazio { padding: 28px 18px; text-align: center; color: var(--apagado); border: 1px dashed var(--linha); border-radius: var(--raio); }
+
+  .form label { display: block; margin: 16px 0 6px; font-weight: 600; font-size: .92rem; }
+  .form small { display: block; margin-top: 4px; color: var(--apagado); font-size: .8rem; }
+  .form input[type=text], .form select, .form textarea { width: 100%; min-height: 46px; padding: 11px 13px; border-radius: 12px;
+    background: var(--panel); border: 1px solid var(--linha); }
+  .form textarea { min-height: 220px; resize: vertical; line-height: 1.5; }
+  .marca { display: flex; align-items: flex-start; gap: 12px; margin-top: 14px; padding: 12px 14px; border-radius: 14px;
+    background: var(--panel); border: 1px solid var(--linha); font-weight: 500; }
+  .marca input { width: 22px; height: 22px; margin: 1px 0 0; accent-color: var(--acento); flex: none; }
+  .marca span small { font-weight: 400; }
+  .form .btn.forte { width: 100%; margin-top: 20px; }
+
+  .entrar { padding-top: 8vh; text-align: center; }
+  .entrar img { width: 88px; height: 88px; border-radius: 22px; }
+  .entrar h2 { margin: 18px 0 8px; font-size: 1.5rem; letter-spacing: -.02em; }
+  .entrar p { margin: 0 auto 22px; max-width: 360px; color: var(--apagado); }
+  .codigo { width: 100%; max-width: 320px; min-height: 58px; padding: 12px; text-align: center; font-family: var(--mono); font-size: 1.6rem;
+    letter-spacing: .22em; text-transform: uppercase; border-radius: 14px; background: var(--panel); border: 1px solid var(--linha-forte); }
+  .entrar .btn.forte { width: 100%; max-width: 320px; margin-top: 14px; }
+
+  .ajuste { margin-bottom: 12px; padding: 16px; border-radius: var(--raio); background: var(--panel); border: 1px solid var(--linha); }
+  .ajuste h2 { margin: 0 0 6px; font-size: 1rem; }
+  .ajuste p { margin: 0 0 12px; color: var(--apagado); font-size: .9rem; }
+
+  nav.abas { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; display: grid; grid-template-columns: repeat(3, 1fr);
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); background: rgba(6, 14, 10, .94); border-top: 1px solid var(--linha);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  nav.abas button { display: grid; justify-items: center; gap: 2px; min-height: 52px; padding: 6px; border: 0; border-radius: 12px;
+    background: transparent; color: var(--apagado); font-size: .74rem; font-weight: 600; }
+  nav.abas button svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  nav.abas button[aria-current=page] { color: var(--acento); }
+
+  .toast { position: fixed; left: 16px; right: 16px; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 9; max-width: 560px; margin: 0 auto;
+    padding: 13px 16px; border-radius: 14px; background: #10261c; border: 1px solid var(--linha-forte); box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+    font-size: .92rem; transform: translateY(20px); opacity: 0; transition: .25s ease; pointer-events: none; }
+  .toast.mostra { transform: none; opacity: 1; }
+  .toast.ruim { border-color: rgba(255, 122, 122, .5); background: #2a1313; }
+  dialog { width: min(92vw, 420px); padding: 20px; border-radius: var(--raio); background: var(--panel-2); color: var(--texto);
+    border: 1px solid var(--linha-forte); }
+  dialog::backdrop { background: rgba(0, 0, 0, .6); }
+  dialog h2 { margin: 0 0 8px; font-size: 1.1rem; }
+  dialog p { margin: 0 0 18px; color: var(--apagado); }
+  dialog .acoes { justify-content: flex-end; margin: 0; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="topo">
+  <img src="icone-192.png" alt="">
+  <h1>V9 Vision</h1>
+  <div class="pc" id="pc" hidden><i></i><span id="pc-txt"></span></div>
+</header>
+
+<main>
+  <!-- ligar este celular ao PC -->
+  <section class="entrar" id="tela-entrar" hidden>
+    <img src="icone-512.png" alt="">
+    <h2>Ligue ao seu PC</h2>
+    <p>No V9 Vision do PC, abra <b>App no celular</b> e aponte a câmera para o QR code. Ou digite aqui o código de 8 letras.</p>
+    <form id="form-entrar" autocomplete="off">
+      <input class="codigo" id="codigo" maxlength="9" inputmode="text" autocapitalize="characters" placeholder="ABCD 2345" aria-label="Código do PC">
+      <button class="btn forte" type="submit">Ligar</button>
+    </form>
+  </section>
+
+  <section id="tela-videos" hidden>
+    <div class="aviso" id="fila-pausada" hidden>
+      <p>A fila do PC está pausada. Os próximos vídeos só começam quando você retomar.</p>
+      <button class="btn forte" type="button" data-pedido="retomar_fila">Retomar a fila</button>
+    </div>
+    <div id="lista"></div>
+  </section>
+
+  <section id="tela-criar" class="form" hidden>
+    <form id="form-criar" autocomplete="off">
+      <label for="c-nome">Nome do projeto</label>
+      <input type="text" id="c-nome" maxlength="80" required placeholder="ex.: CHRISTMAS_ISLAND">
+      <label for="c-roteiro">Roteiro</label>
+      <textarea id="c-roteiro" required placeholder="Cole aqui o texto que vai ser narrado. Linha em branco = pausa."></textarea>
+      <small id="c-conta">0 letras</small>
+      <label for="c-canal">Canal</label>
+      <select id="c-canal"></select>
+      <label for="c-pipeline">Pipeline</label>
+      <select id="c-pipeline"></select>
+      <label for="c-nicho">Nicho</label>
+      <select id="c-nicho"></select>
+      <small>No Automático, o V9 lê o roteiro e escolhe.</small>
+      <label for="c-cerebro">Cérebro</label>
+      <select id="c-cerebro">
+        <option value="">O padrão deste PC</option>
+        <option value="icaro">ÍCARO</option>
+        <option value="original">Original</option>
+      </select>
+      <label class="marca"><input type="checkbox" id="c-rapido"><span>Modo rápido<small>A busca do YouTube como no V9 Lite: o vídeo sai em menos da metade do tempo.</small></span></label>
+      <label class="marca" id="c-youtube-l"><input type="checkbox" id="c-youtube" checked><span>Usar vídeos do YouTube</span></label>
+      <label class="marca"><input type="checkbox" id="c-logo"><span>Manter o logo da emissora<small>E creditar a fonte na tela.</small></span></label>
+      <button class="btn forte" type="submit">Mandar para o PC</button>
+    </form>
+  </section>
+
+  <section id="tela-ajustes" hidden>
+    <div class="ajuste">
+      <h2>Avisos</h2>
+      <p id="push-txt">Receba aviso quando um vídeo fica pronto, para com erro ou o MP4 termina.</p>
+      <button class="btn forte" type="button" id="push-btn">Receber avisos</button>
+    </div>
+    <div class="ajuste">
+      <h2>Este celular</h2>
+      <p>Para desligar este celular do PC, toque abaixo. Você pode ligar de novo pelo QR code.</p>
+      <button class="btn perigo" type="button" id="sair">Desligar do PC</button>
+    </div>
+  </section>
+</main>
+
+<nav class="abas" id="abas" hidden aria-label="Telas">
+  <button type="button" data-aba="videos" aria-current="page">
+    <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M10 9.5v5l4.5-2.5z"/></svg>Vídeos</button>
+  <button type="button" data-aba="criar">
+    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Criar vídeo</button>
+  <button type="button" data-aba="ajustes">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Ajustes</button>
+</nav>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<dialog id="confirmar">
+  <h2 id="conf-titulo"></h2>
+  <p id="conf-texto"></p>
+  <div class="acoes">
+    <button class="btn" type="button" value="nao">Voltar</button>
+    <button class="btn forte" type="button" value="sim" id="conf-sim"></button>
+  </div>
+</dialog>
+<script src="app.js"></script>
+</body>
+</html>
