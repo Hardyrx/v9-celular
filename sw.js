@@ -1,5 +1,5 @@
 // V9 Vision no celular: guarda a casca do app (abre sem rede) e mostra os avisos do PC.
-const CASCA = "v9cel-3";
+const CASCA = "v9cel-4";
 const ARQUIVOS = ["./", "index.html", "app.js", "criar.js", "manifest.webmanifest", "icone-192.png", "icone-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -15,7 +15,7 @@ self.addEventListener("activate", (e) => {
 // a casca vem da rede quando tem (versão nova na hora) e do cache sem rede; a nuvem nunca passa por aqui
 self.addEventListener("fetch", (e) => {
   const u = new URL(e.request.url);
-  if (e.request.method !== "GET" || u.origin !== self.location.origin) return;
+  if (e.request.method !== "GET" || u.origin !== self.location.origin || u.pathname.includes("/adm/")) return;   // adm/ tem o seu
   e.respondWith(fetch(e.request)
     .then((r) => { const c = r.clone(); caches.open(CASCA).then((k) => k.put(e.request, c)); return r; })
     .catch(() => caches.match(e.request).then((r) => r || caches.match("index.html"))));
@@ -26,7 +26,7 @@ self.addEventListener("push", (e) => {
   try { d = e.data ? e.data.json() : {}; } catch (_) { d = { texto: e.data ? e.data.text() : "" }; }
   e.waitUntil(self.registration.showNotification(d.titulo || "V9 Vision", {
     body: d.texto || "", tag: d.tag || "v9", icon: "icone-192.png", badge: "icone-192.png", renotify: true,
-    data: { url: d.adm ? "./#adm" : "./" },
+    data: { url: d.adm ? "./adm/" : "./" },
   }));
 });
 
