@@ -1,5 +1,5 @@
 // V9 Vision no celular: guarda a casca do app (abre sem rede) e mostra os avisos do PC.
-const CASCA = "v9cel-1";
+const CASCA = "v9cel-2";
 const ARQUIVOS = ["./", "index.html", "app.js", "manifest.webmanifest", "icone-192.png", "icone-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -26,13 +26,15 @@ self.addEventListener("push", (e) => {
   try { d = e.data ? e.data.json() : {}; } catch (_) { d = { texto: e.data ? e.data.text() : "" }; }
   e.waitUntil(self.registration.showNotification(d.titulo || "V9 Vision", {
     body: d.texto || "", tag: d.tag || "v9", icon: "icone-192.png", badge: "icone-192.png", renotify: true,
+    data: { url: d.adm ? "./#adm" : "./" },
   }));
 });
 
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || "./";      // aviso do administrador abre a aba Admin
   e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => {
-    for (const c of cs) if ("focus" in c) return c.focus();
-    return self.clients.openWindow("./");
+    for (const c of cs) if ("navigate" in c) return c.navigate(url).then((w) => (w || c).focus());
+    return self.clients.openWindow(url);
   }));
 });

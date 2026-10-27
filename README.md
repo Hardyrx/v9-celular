@@ -10,3 +10,11 @@ O app de celular do V9 Vision (27/10/2026). Site estático (GitHub Pages) que o 
 
 Arquivos: `index.html` (telas e estilo), `app.js` (lógica), `sw.js` (cache da casca + avisos), `manifest.webmanifest`.
 Nada aqui é segredo: o token de cada celular fica só no próprio celular (e o hash dele na nuvem).
+
+## Administrador (só no celular do dono)
+
+O painel de licenças do PC do dono (card **Meu celular de administrador**) mostra um QR code (`#a=CÓDIGO`, 5 min). O
+celular recebe um acesso próprio na função `celular_adm`; o ADMIN_TOKEN nunca sai do PC. A aba **Admin** só aparece com
+esse acesso e faz: liberar PC por código (nome, validade, ÍCARO, Lite), aceitar IP novo, bloquear/desbloquear, ligar uso,
+atualização, ÍCARO e Lite, somar validade e renovar plano de membro. Apagar e zerar ÍCARO continuam só no painel.
+Aviso "PC novo pedindo acesso": gatilho no banco (`migracao-celular-adm.sql`).
