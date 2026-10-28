@@ -18,6 +18,10 @@ function guardarEsperando() { guardado.gravar("v9cel_esperando", JSON.stringify(
 const rotulos = new Map(Object.entries(JSON.parse(guardado.ler("v9cel_rotulos") || "{}")).map(([k, v]) => [Number(k), v]));
 function guardarRotulo(id, r) { rotulos.set(id, r); while (rotulos.size > 30) rotulos.delete(rotulos.keys().next().value);
   guardado.gravar("v9cel_rotulos", JSON.stringify(Object.fromEntries(rotulos))); }
+// pedidos que o usuário tirou da tela com o X (só neste celular; só os 60 últimos)
+let dispensados = JSON.parse(guardado.ler("v9cel_dispensados") || "[]");
+function dispensar(id) { dispensados.push(id); dispensados = dispensados.slice(-60);
+  guardado.gravar("v9cel_dispensados", JSON.stringify(dispensados)); }
 let relogio = null;
 
 async function nuvem(acao, campos = {}) {
@@ -223,7 +227,7 @@ function desenhar(d) {
 const NOME_PEDIDO = { pausar: "Pausar", retomar: "Retomar", parar: "Parar", continuar: "Continuar", retomar_fila: "Retomar a fila",
                       gerar_veo: "Mandar as cenas de IA", exportar_mp4: "Exportar o MP4", criar_video: "Criar vídeo", refazer: "Refazer" };
 function respostas(d) {
-  const lista = (d.respostas || []).filter((r) => Date.now() - new Date(r.criado_em).getTime() < 24 * 3600e3).slice(0, 6);
+  const lista = (d.respostas || []).filter((r) => !dispensados.includes(r.id) && Date.now() - new Date(r.criado_em).getTime() < 24 * 3600e3).slice(0, 6);
   const caixa = $("pedidos");
   caixa.textContent = "";
   if (lista.length) {
@@ -237,6 +241,13 @@ function respostas(d) {
       meio.appendChild(el("p", "", r.feito_em ? (res.ok ? "Feito." + (res.msg ? " " + res.msg : "") : "Não deu: " + (res.msg || "o PC não conseguiu."))
                                               : r.pego_em ? "O PC está fazendo…" : d.pc_online ? "Esperando o PC pegar…" : "Esperando o PC ligar (o V9 Vision precisa estar aberto)."));
       linha.append(el("i"), meio, el("time", "", new Date(r.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })));
+      if (r.feito_em) {                       // só dá para apagar o que já terminou (deu certo ou deu erro)
+        const x = el("button", "pedido-x", "✕");
+        x.type = "button";
+        x.setAttribute("aria-label", "Apagar este pedido da tela");
+        x.onclick = () => { dispensar(r.id); respostas(d); };
+        linha.appendChild(x);
+      }
       caixa.appendChild(linha);
     }
   }
