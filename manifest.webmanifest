@@ -1,7 +1,7 @@
 {
-  "name": "V9 Vision",
-  "short_name": "V9 Vision",
-  "description": "Acompanhe e comande o V9 Vision do seu PC pelo celular.",
+  "name": "V9 no celular",
+  "short_name": "V9",
+  "description": "Acompanhe e comande o V9 Vision e o V9 Lite do seu PC pelo celular.",
   "lang": "pt-BR",
   "start_url": "./",
   "scope": "./",

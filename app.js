@@ -1,5 +1,7 @@
 // V9 Vision no celular (27/10/2026): lê o andamento que o PC manda para a nuvem e deixa pedidos que o PC busca e faz.
 // O celular nunca fala direto com o PC. O token deste celular fica só aqui (e o hash dele na nuvem).
+// 28/10 (dono: "quero um app para o lite também"): o MESMO app liga ao V9 Vision e ao V9 Lite (um token para cada; a
+// troca fica no topo). As telas do Lite estão em lite.js.
 "use strict";
 const NUVEM = "https://hrvrhaxllsbgiwkliuoc.supabase.co/functions/v1/celular";
 const CHAVE_TOKEN = "v9cel_token";
@@ -9,7 +11,27 @@ const guardado = {
   ler(k) { try { return localStorage.getItem(k); } catch (_) { return null; } },
   gravar(k, v) { try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (_) { /* aba privada */ } },
 };
-let token = guardado.ler(CHAVE_TOKEN);
+// os PCs ligados: [{app: "vision"|"lite", token}] (antes de 28/10 só havia o token do Vision, em v9cel_token)
+let pcs = (() => { try { const l = JSON.parse(guardado.ler("v9cel_pcs") || "null"); if (Array.isArray(l)) return l; } catch (_) { /* refaz */ }
+                   const t = guardado.ler(CHAVE_TOKEN); return t ? [{ app: "vision", token: t }] : []; })();
+let atual = guardado.ler("v9cel_atual") || (pcs[0] && pcs[0].app) || "vision";
+if (!pcs.some((p) => p.app === atual) && pcs.length) atual = pcs[0].app;
+let token = (pcs.find((p) => p.app === atual) || {}).token || null;
+const ehLite = () => atual === "lite";
+const NOME_APP = () => (ehLite() ? "V9 Lite" : "V9 Vision");
+function guardarPcs() {
+  guardado.gravar("v9cel_pcs", JSON.stringify(pcs));
+  guardado.gravar(CHAVE_TOKEN, (pcs.find((p) => p.app === "vision") || {}).token || null);
+  guardado.gravar("v9cel_atual", atual);
+}
+function trocarPc(app) {
+  const p = pcs.find((x) => x.app === app);
+  if (!p || app === atual) return;
+  atual = app; token = p.token; ultimo = null;
+  guardarPcs();
+  montar();
+  aba("videos");
+}
 let ultimo = null;                 // a última resposta de cel_estado
 // id do pedido -> texto do que foi pedido (guardado: fechar o app no meio não perde a resposta)
 let esperando = new Map(Object.entries(JSON.parse(guardado.ler("v9cel_esperando") || "{}")).map(([k, v]) => [Number(k), v]));
@@ -42,6 +64,7 @@ const MOTIVOS = {
   arquivo_grande: "O arquivo passa de 50 MB. Mande em mp3 ou m4a (um áudio de 15 min em mp3 tem uns 15 MB).",
   arquivos_demais: "Muitos arquivos esperando o PC. Deixe o V9 Vision aberto no PC para ele buscar e tente de novo.",
   arquivo_invalido: "Não consegui ler esse arquivo. Escolha de novo.",
+  arquivo_sumiu: "A prévia não está mais na nuvem (ela some em 2 dias). Peça outra.",
 };
 
 // ------------------------------------------------------------------ avisos na tela
@@ -65,13 +88,17 @@ function confirmar(titulo, texto, botao) {
 }
 
 // ------------------------------------------------------------------ telas
-const TELAS = ["videos", "criar", "ajustes"];
+const TELAS = ["videos", "criar", "tema", "ajustes"];
 let abaAtual = "videos";
 function aba(nome) {
   abaAtual = nome;
-  const precisaPc = (nome === "videos" || nome === "criar") && !token;
-  for (const t of TELAS) $("tela-" + t).hidden = precisaPc || t !== nome;
-  $("tela-entrar").hidden = !precisaPc;
+  if (nome === "criar" && ehLite()) nome = "tema";
+  if (nome === "tema" && !ehLite()) nome = "criar";
+  abaAtual = nome;
+  const entrarTela = nome === "entrar" || ((nome === "videos" || nome === "criar" || nome === "tema") && !token);
+  for (const t of TELAS) $("tela-" + t).hidden = entrarTela || t !== nome;
+  $("tela-entrar").hidden = !entrarTela;
+  $("entrar-voltar").hidden = !(nome === "entrar" && token);
   document.querySelectorAll("nav.abas button").forEach((b) => {
     if (b.dataset.aba === nome) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
   });
@@ -81,6 +108,17 @@ function montar() {
   const algum = !!token;
   $("abas").hidden = !algum;
   $("pc").hidden = !token;
+  $("titulo").textContent = NOME_APP();
+  document.title = NOME_APP();
+  $("aba-criar").hidden = ehLite();
+  $("aba-tema").hidden = !ehLite();
+  $("esteira-card").hidden = !ehLite();
+  $("lista").textContent = "";
+  $("pedidos").textContent = "";
+  const troca = $("troca");
+  troca.hidden = pcs.length < 2;
+  troca.querySelectorAll("button").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.app === atual)));
+  $("sair-txt").textContent = `Para desligar este celular do ${NOME_APP()} do PC, toque abaixo. Você pode ligar de novo pelo QR code.`;
   clearInterval(relogio);
   if (!algum) {
     for (const t of TELAS) $("tela-" + t).hidden = true;
@@ -95,8 +133,11 @@ function montar() {
   textoPush();
 }
 function desligado() {
-  token = null;
-  guardado.gravar(CHAVE_TOKEN, null);
+  pcs = pcs.filter((p) => p.app !== atual);
+  atual = pcs.length ? pcs[0].app : "vision";
+  token = pcs.length ? pcs[0].token : null;
+  ultimo = null;
+  guardarPcs();
   montar();
   aba("videos");
 }
@@ -112,10 +153,12 @@ async function entrar(codigo) {
   if (codigo.length !== 8) { toast(MOTIVOS.codigo_invalido, true); return; }
   try {
     const d = await nuvem("cel_entrar", { codigo, aparelho: APARELHO });
-    token = d.token;
-    guardado.gravar(CHAVE_TOKEN, token);
+    const app = d.app === "lite" ? "lite" : "vision";
+    pcs = pcs.filter((p) => p.app !== app).concat([{ app, token: d.token }]);
+    atual = app; token = d.token; ultimo = null;
+    guardarPcs();
     history.replaceState(null, "", location.pathname);
-    toast("Ligado ao PC.");
+    toast(app === "lite" ? "Ligado ao V9 Lite do PC." : "Ligado ao V9 Vision do PC.");
     ligado();
   } catch (e) { toast(e.message, true); }
 }
@@ -208,6 +251,7 @@ function cartao(p) {
 
 function desenhar(d) {
   rotuloPc(d);
+  if (ehLite()) { if (typeof desenharLite === "function") desenharLite(d); return; }
   const e = d.estado;
   $("fila-pausada").hidden = !(e && e.fila_pausada);
   const lista = $("lista");
@@ -225,7 +269,8 @@ function desenhar(d) {
 }
 
 const NOME_PEDIDO = { pausar: "Pausar", retomar: "Retomar", parar: "Parar", continuar: "Continuar", retomar_fila: "Retomar a fila",
-                      gerar_veo: "Mandar as cenas de IA", exportar_mp4: "Exportar o MP4", criar_video: "Criar vídeo", refazer: "Refazer" };
+                      gerar_veo: "Mandar as cenas de IA", exportar_mp4: "Exportar o MP4", criar_video: "Criar vídeo", refazer: "Refazer",
+                      aprovar: "Aprovar", reprovar: "Reprovar", nova_pauta: "Novo tema", esteira: "Esteira", previa: "Prévia" };
 function respostas(d) {
   const lista = (d.respostas || []).filter((r) => !dispensados.includes(r.id) && Date.now() - new Date(r.criado_em).getTime() < 24 * 3600e3).slice(0, 6);
   const caixa = $("pedidos");
@@ -239,7 +284,7 @@ function respostas(d) {
       const meio = el("div");
       meio.appendChild(el("b", "", rotulos.get(r.id) || NOME_PEDIDO[r.acao] || r.acao));
       meio.appendChild(el("p", "", r.feito_em ? (res.ok ? "Feito." + (res.msg ? " " + res.msg : "") : "Não deu: " + (res.msg || "o PC não conseguiu."))
-                                              : r.pego_em ? "O PC está fazendo…" : d.pc_online ? "Esperando o PC pegar…" : "Esperando o PC ligar (o V9 Vision precisa estar aberto)."));
+                                              : r.pego_em ? "O PC está fazendo…" : d.pc_online ? "Esperando o PC pegar…" : `Esperando o PC ligar (o ${NOME_APP()} precisa estar aberto).`));
       linha.append(el("i"), meio, el("time", "", new Date(r.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })));
       if (r.feito_em) {                       // só dá para apagar o que já terminou (deu certo ou deu erro)
         const x = el("button", "pedido-x", "✕");
@@ -264,7 +309,9 @@ function respostas(d) {
 async function atualizar() {
   if (!token) return;
   try {
+    const pedido = atual;
     const d = await nuvem("cel_estado");
+    if (pedido !== atual) return;                  // trocou de PC no meio da busca
     ultimo = d;
     desenhar(d);
     respostas(d);
@@ -320,7 +367,8 @@ async function textoPush() {
   const reg = await navigator.serviceWorker.ready;
   const sub = await reg.pushManager.getSubscription();
   if (sub && Notification.permission === "granted") {
-    t.textContent = "Avisos ligados neste celular: vídeo pronto, parou com erro e MP4 pronto.";
+    t.textContent = ehLite() ? "Avisos ligados neste celular: vídeo pronto para aprovar, parou com erro, prévia pronta e publicado."
+                             : "Avisos ligados neste celular: vídeo pronto, parou com erro e MP4 pronto.";
     b.textContent = "Ligar de novo";
   } else if (Notification.permission === "denied") {
     t.textContent = "Os avisos estão bloqueados para este app. Libere nas configurações de notificação do celular.";
@@ -336,7 +384,10 @@ async function ligarAvisos() {
     let sub = await reg.pushManager.getSubscription();
     if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64url(chave) });
     const inscricao = sub.toJSON();
-    await nuvem("cel_push", { inscricao });
+    for (const p of pcs) {                          // a mesma inscrição vale para os dois PCs ligados
+      await fetch(NUVEM, { method: "POST", headers: { "content-type": "application/json" },
+                           body: JSON.stringify({ acao: "cel_push", token: p.token, inscricao }) }).catch(() => {});
+    }
     toast("Avisos ligados.");
     textoPush();
   } catch (e) { toast(e.message || "Não consegui ligar os avisos.", true); }
@@ -353,7 +404,7 @@ function el(tag, cls, txt) {
 
 // ------------------------------------------------------------------ começo
 $("sair").onclick = async () => {
-  if (!(await confirmar("Desligar do PC?", "Este celular para de ver e de comandar o V9 Vision do PC.", "Desligar"))) return;
+  if (!(await confirmar("Desligar do PC?", `Este celular para de ver e de comandar o ${NOME_APP()} do PC.`, "Desligar"))) return;
   try { await nuvem("cel_sair"); } catch (_) { /* desliga aqui de qualquer jeito */ }
   desligado();
 };
@@ -362,6 +413,9 @@ document.querySelectorAll("[data-pedido]").forEach((b) => {
   b.onclick = () => pedir(b.dataset.pedido, {}, b.textContent).catch((e) => toast(e.message, true));
 });
 $("form-entrar").addEventListener("submit", (e) => { e.preventDefault(); entrar($("codigo").value); });
+$("ligar-outro").onclick = () => aba("entrar");
+$("entrar-voltar").onclick = () => aba("ajustes");
+document.querySelectorAll("#troca button").forEach((b) => { b.onclick = () => trocarPc(b.dataset.app); });
 document.addEventListener("visibilitychange", () => { if (!document.hidden && token) atualizar(); });
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 
