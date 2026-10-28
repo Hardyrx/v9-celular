@@ -90,8 +90,8 @@
   .ajuste h2 { margin: 0 0 6px; font-size: 1rem; }
   .ajuste p { margin: 0 0 12px; color: var(--apagado); font-size: .9rem; }
 
-  nav.abas { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; display: grid; grid-template-columns: repeat(3, 1fr);
-    padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); background: rgba(6, 14, 10, .94); border-top: 1px solid var(--linha);
+  nav.abas { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; display: grid; grid-template-columns: repeat(5, 1fr);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); background: rgba(6, 14, 10, .94); border-top: 1px solid var(--linha);
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
   nav.abas button { display: grid; justify-items: center; gap: 2px; min-height: 52px; padding: 6px; border: 0; border-radius: 12px;
     background: transparent; color: var(--apagado); font-size: .74rem; font-weight: 600; }
@@ -199,6 +199,19 @@
   @keyframes pisca { 50% { opacity: .3; } }
   .pc-card .nota { color: var(--alerta); }
   .pedido a { color: var(--acento); font-size: .8rem; margin-left: 8px; }
+  .ajuste input[type=text], .ajuste input[type=password], dialog.dlg-form input[type=password], dialog.dlg-form input[type=number] {
+    width: 100%; min-height: 44px; margin-bottom: 8px; padding: 10px 12px; border-radius: 12px; background: var(--panel-2, var(--panel));
+    border: 1px solid var(--linha); }
+  .btn.largo { width: 100%; margin: 4px 0 2px; }
+  .entrega { margin: 0 0 14px; padding: 12px 14px; border-radius: 12px; background: var(--panel); border: 1px solid var(--linha-forte);
+    font-family: var(--mono); font-size: .95rem; white-space: pre-wrap; word-break: break-all; user-select: all; -webkit-user-select: all; }
+  .chip { display: inline-block; margin: 6px 6px 0 0; padding: 2px 9px; border-radius: 999px; font-size: .74rem; border: 1px solid var(--linha);
+    color: var(--apagado); }
+  .chip.sim { border-color: var(--linha-forte); color: var(--acento); }
+  .chip.ruim { border-color: rgba(255, 122, 122, .45); color: #ffc4c4; }
+  .pc-card.apagado { opacity: .55; }
+  .evento.falha span { color: #ffc4c4; }
+  @media (max-width: 360px) { nav.abas button { font-size: .66rem; } }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
@@ -229,10 +242,40 @@
     <div id="l-pede"></div>
     <h3 class="sec" id="t-ip" hidden>Bloqueados por IP novo</h3>
     <div id="l-ip"></div>
-    <h3 class="sec">PCs e membros</h3>
-    <input class="busca" id="adm-busca" type="search" placeholder="Buscar nome, código ou PC" aria-label="Buscar">
+    <h3 class="sec">PCs</h3>
+    <input class="busca" id="adm-busca" type="search" placeholder="Buscar nome, código ou PC" aria-label="Buscar PCs">
     <div id="l-pcs" style="margin-top:10px"></div>
-    <h3 class="sec">Últimos acessos</h3>
+  </section>
+
+  <section id="tela-membros" hidden>
+    <div class="aviso" id="cofre-sem" hidden>
+      <p><b>Falta ligar o cofre no celular.</b> É uma vez só:</p>
+      <p>1. No GitHub, crie um token fine-grained só dos repositórios <b>v9oracle</b> e <b>v9flow-dist</b>, com <b>Contents: leitura e escrita</b>.</p>
+      <p>2. No Supabase (Edge Functions → Secrets), crie o segredo <b>GITHUB_COFRE_TOKEN</b> e cole o token lá. Nunca mande o token por mensagem.</p>
+    </div>
+    <div class="ajuste" id="cofre-caixa">
+      <h2>Cofre do Oráculo</h2>
+      <p id="cofre-txt">Para cadastrar, criar senha e liberar o V9 Flow, abra o cofre com o seu login e a senha de administrador. A senha fica só nesta tela e some quando você fecha o app.</p>
+      <form id="form-cofre" autocomplete="on">
+        <input type="text" id="cofre-login" placeholder="Login de administrador" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username" aria-label="Login de administrador">
+        <input type="password" id="cofre-senha" placeholder="Senha de administrador" autocomplete="current-password" aria-label="Senha de administrador">
+        <button class="btn forte" type="submit" id="cofre-abrir">Abrir o cofre</button>
+      </form>
+      <button class="btn" type="button" id="cofre-fechar" hidden>Fechar o cofre</button>
+    </div>
+    <button class="btn forte largo" type="button" id="novo-membro">Cadastrar membro</button>
+    <h3 class="sec">Membros</h3>
+    <input class="busca" id="mem-busca" type="search" placeholder="Buscar nome ou login" aria-label="Buscar membros">
+    <div id="l-membros" style="margin-top:10px"></div>
+  </section>
+
+  <section id="tela-registro" hidden>
+    <h3 class="sec" style="margin-top:6px">ÍCARO · suspeitas <span id="ic-cont"></span></h3>
+    <div class="chaves" style="margin:0 0 10px"><button type="button" class="chave" id="ic-todas" aria-pressed="false">Mostrar as resolvidas</button></div>
+    <div id="l-icaro"></div>
+    <h3 class="sec">Acessos e logs</h3>
+    <input class="busca" id="log-busca" type="search" placeholder="Buscar nome, código, app ou resultado" aria-label="Buscar nos logs">
+    <div class="chaves" style="margin:8px 0 6px"><button type="button" class="chave" id="log-falhas" aria-pressed="false">Só falhas</button></div>
     <div id="l-eventos"></div>
   </section>
 
@@ -266,8 +309,12 @@
 <nav class="abas" id="abas" hidden aria-label="Telas">
   <button type="button" data-aba="pcs" aria-current="page">
     <svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>PCs</button>
+  <button type="button" data-aba="membros">
+    <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.6 6.5-5.6s5.9 2 6.5 5.6"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.8c1.7.8 2.7 2.5 3 5.2"/></svg>Membros</button>
   <button type="button" data-aba="publicar">
     <svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>Publicar</button>
+  <button type="button" data-aba="registro">
+    <svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h7M9 16h7"/></svg>Registro</button>
   <button type="button" data-aba="ajustes">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Ajustes</button>
 </nav>
@@ -304,6 +351,38 @@
     </div>
   </form>
 </dialog>
+<dialog id="dlg-novo" class="dlg-form">
+  <form method="dialog" id="form-novo">
+    <h2>Cadastrar membro</h2>
+    <p>Cria a licença e o acesso ao cofre do Oráculo de uma vez, com senha forte.</p>
+    <label for="novo-login">Login</label>
+    <input type="text" id="novo-login" maxlength="80" required autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="ex.: joao.silva">
+    <label for="novo-nome">Nome</label>
+    <input type="text" id="novo-nome" maxlength="80" placeholder="Como aparece no painel (vazio = o login)">
+    <label for="novo-plano">Plano</label>
+    <select id="novo-plano">
+      <option value="1m">1 mês</option>
+      <option value="3m">3 meses</option>
+      <option value="1a">1 ano</option>
+      <option value="vitalicio">Vitalício</option>
+    </select>
+    <label class="marca"><input type="checkbox" id="novo-flow"><span>V9 Flow <small>(só para quem comprou)</small></span></label>
+    <div class="acoes" style="margin-top:18px">
+      <button class="btn" type="button" id="novo-voltar">Voltar</button>
+      <button class="btn forte" type="submit" id="novo-ok">Cadastrar</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="dlg-entrega">
+  <h2>Dados para enviar ao membro</h2>
+  <div class="entrega" id="entrega"></div>
+  <p>A senha só aparece agora. Se perder, use "Nova senha" na linha dele.</p>
+  <div class="acoes">
+    <button class="btn" type="button" id="entrega-copiar">Copiar</button>
+    <button class="btn forte" type="button" id="entrega-ok">Pronto</button>
+  </div>
+</dialog>
+<script src="cofre.js"></script>
 <script src="adm.js"></script>
 </body>
 </html>

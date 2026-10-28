@@ -1,6 +1,6 @@
 // V9 ADMIN no celular (só o dono): guarda a casca do app e mostra os avisos de PC novo. Escopo: só adm/.
-const CASCA = "v9adm-1";
-const ARQUIVOS = ["./", "index.html", "adm.js", "manifest.webmanifest", "icone-192.png", "icone-512.png"];
+const CASCA = "v9adm-2";
+const ARQUIVOS = ["./", "index.html", "adm.js", "cofre.js", "manifest.webmanifest", "icone-192.png", "icone-512.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CASCA).then((c) => c.addAll(ARQUIVOS)).then(() => self.skipWaiting()));
