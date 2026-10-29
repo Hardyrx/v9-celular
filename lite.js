@@ -59,14 +59,7 @@ function cartaoLite(v) {
       meio.appendChild(det);
     }
     const acoes = el("div", "acoes");
-    if (v.final) {
-      const pv = el("button", "btn");
-      pv.type = "button";
-      if (v.previa) { pv.textContent = "Assistir"; pv.onclick = () => assistir(v); }
-      else if (v.previa_fazendo || esperandoPrevia(v.id)) { pv.textContent = "Fazendo a prévia…"; pv.disabled = true; }
-      else { pv.textContent = "Fazer a prévia"; pv.onclick = () => pedirPrevia(v); }
-      acoes.appendChild(pv);
-    }
+    if (v.final) acoes.appendChild(botaoPrevia(v.id, v.previa, v.previa_fazendo, () => pedirPrevia(v)));   // em app.js
     const ap = el("button", "btn forte", "Aprovar");
     ap.type = "button";
     ap.onclick = () => aprovar(v);
@@ -149,9 +142,7 @@ async function reprovar(v) {
   try { await pedir("reprovar", { video: v.id, motivo }, "Reprovar: " + v.titulo.slice(0, 40)); } catch (e) { toast(e.message, true); }
 }
 
-// ------------------------------------------------------------------ prévia
-const previasPedidas = new Map();          // vídeo -> quando pediu (o botão fica "fazendo" até a foto do PC confirmar)
-function esperandoPrevia(id) { return Date.now() - (previasPedidas.get(id) || 0) < 90e3; }
+// ------------------------------------------------------------------ prévia (o botão, o assistir e o fechar estão em app.js)
 async function pedirPrevia(v) {
   const ok = await confirmar("Fazer a prévia?", "O PC faz uma cópia leve do vídeo e manda para cá. Vídeo longo leva alguns minutos; chega um aviso quando der para assistir.", "Fazer");
   if (!ok) return;
@@ -161,16 +152,6 @@ async function pedirPrevia(v) {
     if (ultimo) desenharLite(ultimo);
   } catch (e) { previasPedidas.delete(v.id); toast(e.message, true); }
 }
-async function assistir(v) {
-  try {
-    const d = await nuvem("cel_previa", { caminho: v.previa });
-    const vid = $("video");
-    vid.src = d.url;
-    $("dlg-video").showModal();
-    vid.play().catch(() => {});
-  } catch (e) { toast(e.message, true); }
-}
-$("video-fechar").onclick = () => { const vid = $("video"); vid.pause(); vid.removeAttribute("src"); vid.load(); $("dlg-video").close(); };
 
 // ------------------------------------------------------------------ esteira
 function esteiraTela(es, online) {

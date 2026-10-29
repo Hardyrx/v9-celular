@@ -2,6 +2,8 @@
 // O celular nunca fala direto com o PC. O token deste celular fica só aqui (e o hash dele na nuvem).
 // 28/10 (dono: "quero um app para o lite também"): o MESMO app liga ao V9 Vision e ao V9 Lite (um token para cada; a
 // troca fica no topo). As telas do Lite estão em lite.js.
+// 29/10 (dono: "tinha que ter aqui no celular uma prévia do que ficou pronto"): o Vision também tem a Prévia do Lite --
+// nos vídeos prontos, "Fazer a prévia" (o PC exporta o MP4 se faltar e manda uma cópia leve) e depois "Assistir".
 "use strict";
 const NUVEM = "https://hrvrhaxllsbgiwkliuoc.supabase.co/functions/v1/celular";
 const CHAVE_TOKEN = "v9cel_token";
@@ -225,6 +227,12 @@ function cartao(p) {
     m.textContent = "MP4 pronto no PC" + (p.mp4.duracao_s ? ` · ${Math.floor(p.mp4.duracao_s / 60)}:${String(Math.round(p.mp4.duracao_s % 60)).padStart(2, "0")}` : "");
     div.appendChild(m);
   }
+  if (p.previa_fazendo && !p.previa) {
+    const m = document.createElement("p");
+    m.className = "etapa";
+    m.textContent = `Prévia: ${PASSOS_PREVIA[p.previa_fazendo] || "fazendo"}…`;
+    div.appendChild(m);
+  }
   if (p.erro && ["erro", "parado", "interrompido"].includes(p.etapa)) {
     const e = document.createElement("p");
     e.className = "erro";
@@ -234,6 +242,9 @@ function cartao(p) {
   const pode = p.pode || {};
   const acoes = document.createElement("div");
   acoes.className = "acoes";
+  if (p.etapa === "concluido" && (p.previa || p.previa_fazendo || pode.previa)) {
+    acoes.appendChild(botaoPrevia("vision:" + p.nome, p.previa, p.previa_fazendo, () => pedirPreviaVision(p)));
+  }
   for (const [k, rotulo, tipo] of BOTOES) {
     const chave = k.startsWith("refazer_") ? "refazer" : k;
     if (!pode[chave]) continue;
@@ -349,6 +360,43 @@ async function acao(k, projeto, rotulo) {
   } catch (e) { toast(e.message, true); }
 }
 
+// ------------------------------------------------------------------ prévia (Lite 28/10, Vision 29/10)
+// a cópia leve que o PC sobe para a nuvem (some em 2 dias); o botão é o mesmo nos dois apps
+const PASSOS_PREVIA = { na_fila: "na fila do PC", exportando: "o PC está exportando o MP4", copiando: "fazendo a cópia leve",
+                        enviando: "mandando para cá" };
+const previasPedidas = new Map();          // vídeo -> quando pediu (o botão fica "fazendo" até a foto do PC confirmar)
+function esperandoPrevia(id) { return Date.now() - (previasPedidas.get(id) || 0) < 90e3; }
+function botaoPrevia(id, caminho, fazendo, pedirFn) {
+  const pv = el("button", "btn");
+  pv.type = "button";
+  if (caminho) { pv.textContent = "Assistir"; pv.onclick = () => assistirPrevia(caminho); }
+  else if (fazendo || esperandoPrevia(id)) { pv.textContent = "Fazendo a prévia…"; pv.disabled = true; }
+  else { pv.textContent = "Fazer a prévia"; pv.onclick = pedirFn; }
+  return pv;
+}
+async function assistirPrevia(caminho) {
+  try {
+    const d = await nuvem("cel_previa", { caminho });
+    const vid = $("video");
+    vid.src = d.url;
+    $("dlg-video").showModal();
+    vid.play().catch(() => {});
+  } catch (e) { toast(e.message, true); }
+}
+$("video-fechar").onclick = () => { const vid = $("video"); vid.pause(); vid.removeAttribute("src"); vid.load(); $("dlg-video").close(); };
+async function pedirPreviaVision(p) {
+  const temMp4 = p.mp4 && p.mp4.estado === "pronto";
+  const texto = temMp4 ? "O PC faz uma cópia leve do MP4 e manda para cá. Vídeo longo leva alguns minutos; chega um aviso quando der para assistir."
+                       : "O PC exporta o MP4 primeiro (leva alguns minutos) e manda uma cópia leve para cá. Chega um aviso quando der para assistir.";
+  if (!(await confirmar("Fazer a prévia?", texto, "Fazer"))) return;
+  const id = "vision:" + p.nome;
+  try {
+    previasPedidas.set(id, Date.now());
+    await pedir("previa", { projeto: p.nome }, "Prévia: " + p.nome.slice(0, 40));
+    if (ultimo) desenhar(ultimo);
+  } catch (e) { previasPedidas.delete(id); toast(e.message, true); }
+}
+
 // ------------------------------------------------------------------ avisos (Web Push)
 function b64url(s) {
   const p = "=".repeat((4 - (s.length % 4)) % 4);
@@ -368,7 +416,7 @@ async function textoPush() {
   const sub = await reg.pushManager.getSubscription();
   if (sub && Notification.permission === "granted") {
     t.textContent = ehLite() ? "Avisos ligados neste celular: vídeo pronto para aprovar, parou com erro, prévia pronta e publicado."
-                             : "Avisos ligados neste celular: vídeo pronto, parou com erro e MP4 pronto.";
+                             : "Avisos ligados neste celular: vídeo pronto, parou com erro, MP4 pronto e prévia pronta.";
     b.textContent = "Ligar de novo";
   } else if (Notification.permission === "denied") {
     t.textContent = "Os avisos estão bloqueados para este app. Libere nas configurações de notificação do celular.";
